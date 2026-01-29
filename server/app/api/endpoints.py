@@ -27,3 +27,25 @@ def log_dose(db: Session = Depends(get_db), current_user: models.User = Depends(
     db.add(new_dose)
     db.commit()
     return {"message": "Dose logged successfully"}
+
+@router.post("/symptoms")
+def log_symptom(
+    symptom_data: schemas.SymptomCreate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Logic: Find the most recent meal within the last 8 hours
+    eight_hours_ago = datetime.utcnow() - timedelta(hours=8)
+    linked_meal = db.query(models.MealLog).filter(
+        models.MealLog.user_id == current_user.id,
+        models.MealLog.timestamp >= eight_hours_ago
+    ).order_by(models.MealLog.timestamp.desc()).first()
+
+    new_symptom = models.Symptom(
+        **symptom_data.dict(),
+        user_id=current_user.id,
+        meal_id=linked_meal.id if linked_meal else None
+    )
+    db.add(new_symptom)
+    db.commit()
+    return {"status": "success", "linked_to_meal": linked_meal.food_item if linked_meal else "None"}
