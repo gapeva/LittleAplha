@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: alpha_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: little_alpha
+    ports:
+      - "5432:5432"
+
+  server:
+    build: ./server
+    container_name: alpha_backend
+    volumes:
+      - ./server:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/little_alpha
+    depends_on:
+      - db
