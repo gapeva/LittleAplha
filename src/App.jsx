@@ -1,38 +1,64 @@
-import { ShieldCheck, Flame, Clock } from 'lucide-react';
-import { Card } from './components/ui/Card';
+import React, { useState, useEffect } from 'react';
+import Landing from './pages/Landing';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
 function App() {
+  // Track if the user is logged in
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Track which page we are on (Landing, Login, or Dashboard)
+  const [currentPage, setCurrentPage] = useState('LANDING');
+
+  // Check for existing login on startup
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+      setCurrentPage('DASHBOARD');
+    }
+  }, []);
+
+  const handleLoginSuccess = (token) => {
+    localStorage.setItem('token', token);
+    setIsAuthenticated(true);
+    setCurrentPage('DASHBOARD');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    setCurrentPage('LANDING');
+  };
+
+  // Simple Router Logic
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans">
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-biotech-blue">Little Alpha</h1>
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
-          <Flame className="text-streak fill-streak" size={20} />
-          <span className="font-bold text-slate-700">12 Day Streak</span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {currentPage === 'LANDING' && (
+        <Landing 
+          onNavigateLogin={() => setCurrentPage('LOGIN')} 
+          onNavigateSignup={() => setCurrentPage('SIGNUP')} 
+        />
+      )}
 
-      <main className="max-w-md mx-auto space-y-6">
-        {/* Status Card Preview */}
-        <Card className="text-center border-t-4 border-t-safe">
-          <div className="mx-auto w-16 h-16 bg-safe/10 rounded-full flex items-center justify-center mb-4">
-            <ShieldCheck className="text-safe" size={32} />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-800">Safe to Eat</h2>
-          <p className="text-slate-500 text-sm">Window closes in 2h 15m</p>
-        </Card>
+      {currentPage === 'LOGIN' && (
+        <Login 
+          onSuccess={handleLoginSuccess} 
+          onBack={() => setCurrentPage('LANDING')} 
+        />
+      )}
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <button className="bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg shadow-biotech-blue/20 flex flex-col items-center gap-2">
-            <Clock size={20} />
-            Log Dose
-          </button>
-          <button className="bg-white border-2 border-slate-200 text-slate-600 font-bold py-4 rounded-medical flex flex-col items-center gap-2">
-            Add Meal
-          </button>
+      {currentPage === 'DASHBOARD' && isAuthenticated && (
+        <Dashboard onLogout={handleLogout} />
+      )}
+      
+      {/* Fallback for Signup (can be built as a copy of Login) */}
+      {currentPage === 'SIGNUP' && (
+        <div className="p-10 text-center">
+          <h2 className="text-2xl font-bold">Registration</h2>
+          <p className="mb-4">Feature coming in next commit.</p>
+          <button onClick={() => setCurrentPage('LANDING')} className="text-biotech-blue underline">Back</button>
         </div>
-      </main>
+      )}
     </div>
   );
 }
