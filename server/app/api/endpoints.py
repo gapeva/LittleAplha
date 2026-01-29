@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..models import models
-from ..core.security import get_current_user # Assume dependency is built
+from ..schemas import schemas # Added schemas import
+from .deps import get_db, get_current_user # Added get_db and get_current_user
+from .protection import calculate_protection_status # Fixed local import
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -10,7 +13,6 @@ def get_current_protection_status(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
-    # Fetch latest dose
     last_dose = db.query(models.DoseLog)\
         .filter(models.DoseLog.user_id == current_user.id)\
         .order_by(models.DoseLog.timestamp.desc())\
