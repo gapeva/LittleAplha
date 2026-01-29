@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/api"; // Change to your Sevalla URL later
+const API_URL = "http://localhost:8000/api";
 
 export const apiClient = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
@@ -16,7 +16,7 @@ export const apiClient = async (endpoint, options = {}) => {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || 'API Request failed');
+    throw new Error(error.detail || 'Request failed');
   }
 
   return response.json();
