@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
 import { Flame, PlusCircle } from 'lucide-react';
+import { AdherenceTimeline } from '../components/AdherenceTimeline';
+import { StreakCounter } from '../components/StreakCounter';
+
+const MOCK_EVENTS = [
+  { type: 'DOSE', title: 'Morning Dose', time: '08:00 AM', description: 'Confirmed Adherence' },
+  { type: 'MEAL', title: 'Breakfast', time: '09:15 AM', description: 'Low Risk: Avocado Toast' },
+  { type: 'SYMPTOM', title: 'Mild Itching', time: '01:30 PM', description: 'Severity: 2/10' },
+];
 
 export default function Dashboard() {
   // Local state for MVP; Phase 5 will connect this to the Backend API
