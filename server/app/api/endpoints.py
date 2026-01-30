@@ -5,7 +5,7 @@ from ..schemas import schemas
 from .deps import get_db, get_current_user
 from .protection import calculate_protection_status
 from .auth import create_user, login
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List
 
@@ -24,22 +24,31 @@ def get_current_protection_status(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
+    # 1. Fetch Last Dose
     last_dose = db.query(models.DoseLog)\
         .filter(models.DoseLog.user_id == current_user.id)\
         .order_by(models.DoseLog.timestamp.desc())\
         .first()
     
+    # 2. Fetch Streak Data
+    streak_record = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
+    current_streak = streak_record.current_count if streak_record else 0
+
     if not last_dose:
         return {
             "status": "IDLE", 
             "message": "Take a dose to start protection.", 
             "color": "#94a3b8", 
             "remaining": 0,
-            "last_dose": None
+            "last_dose": None,
+            "streak": current_streak
         }
     
+    # 3. Calculate Logic
     status_data = calculate_protection_status(last_dose.timestamp)
     status_data["last_dose"] = last_dose.timestamp
+    status_data["streak"] = current_streak
+    
     return status_data
 
 @router.post("/dose")
@@ -50,6 +59,8 @@ def log_dose(db: Session = Depends(get_db), current_user: models.User = Depends(
     # Update Streak Logic
     streak = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
     if streak:
+        # NOTE: Real production apps would check if 'last_dose_date' was yesterday to increment
+        # For this MVP, we increment on every dose as per requirements
         streak.current_count += 1
         streak.last_dose_date = datetime.utcnow()
     
@@ -78,18 +89,20 @@ def log_symptom(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Logic: If meal_id is not provided, link to the most recent meal within 4 hours
     meal_id = symptom_data.meal_id
     
+    # Logic: Auto-link if no meal provided, BUT only if meal was < 4 hours ago
     if not meal_id:
         recent_meal = db.query(models.MealLog)\
             .filter(models.MealLog.user_id == current_user.id)\
             .order_by(models.MealLog.timestamp.desc())\
             .first()
+            
         if recent_meal:
-            # Optional: Check if meal was recent enough (e.g., 4 hours)
-            # For now, we link to the absolute last meal
-            meal_id = recent_meal.id
+            # 4-Hour Clinical Window Check
+            time_diff = datetime.utcnow() - recent_meal.timestamp
+            if time_diff < timedelta(hours=4):
+                meal_id = recent_meal.id
 
     new_symptom = models.Symptom(
         severity=symptom_data.severity,
@@ -108,7 +121,6 @@ def get_history(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Fetch all types of events
     doses = db.query(models.DoseLog).filter(models.DoseLog.user_id == current_user.id).all()
     meals = db.query(models.MealLog).filter(models.MealLog.user_id == current_user.id).all()
     symptoms = db.query(models.Symptom).filter(models.Symptom.user_id == current_user.id).all()
@@ -133,7 +145,6 @@ def get_history(
             "description": f"Severity {s.severity}/10 - {s.description}", "time": s.timestamp
         })
         
-    # Sort by time descending
     timeline.sort(key=lambda x: x["time"], reverse=True)
     
     return timeline
