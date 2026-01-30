@@ -4,12 +4,9 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
 function App() {
-  // Track if the user is logged in
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // Track which page we are on (Landing, Login, or Dashboard)
   const [currentPage, setCurrentPage] = useState('LANDING');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check for existing login on startup
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -30,13 +27,12 @@ function App() {
     setCurrentPage('LANDING');
   };
 
-  // Simple Router Logic
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50">
       {currentPage === 'LANDING' && (
         <Landing 
           onNavigateLogin={() => setCurrentPage('LOGIN')} 
-          onNavigateSignup={() => setCurrentPage('SIGNUP')} 
+          onNavigateSignup={() => setCurrentPage('SIGNUP')}
         />
       )}
 
@@ -47,16 +43,18 @@ function App() {
         />
       )}
 
-      {currentPage === 'DASHBOARD' && isAuthenticated && (
+      {currentPage === 'DASHBOARD' && isAuthenticated ? (
         <Dashboard onLogout={handleLogout} />
+      ) : currentPage === 'DASHBOARD' && (
+        // Redirect to landing if user tries to reach dashboard without token
+        <Landing onNavigateLogin={() => setCurrentPage('LOGIN')} />
       )}
-      
-      {/* Fallback for Signup (can be built as a copy of Login) */}
+
       {currentPage === 'SIGNUP' && (
         <div className="p-10 text-center">
-          <h2 className="text-2xl font-bold">Registration</h2>
-          <p className="mb-4">Feature coming in next commit.</p>
-          <button onClick={() => setCurrentPage('LANDING')} className="text-biotech-blue underline">Back</button>
+          <h2 className="text-2xl font-bold mb-4 tracking-tight">Registration</h2>
+          <p className="text-slate-500 mb-6">Create a copy of Login.jsx to build this route.</p>
+          <button onClick={() => setCurrentPage('LANDING')} className="text-biotech-blue font-bold">Return Home</button>
         </div>
       )}
     </div>
