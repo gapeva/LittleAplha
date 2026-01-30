@@ -1,7 +1,6 @@
-
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 from ..models.models import RiskLevel
 
 class UserBase(BaseModel):
@@ -49,3 +48,14 @@ class StatusResponse(BaseModel):
     color: str
     remaining: float
     last_dose: Optional[datetime] = None
+
+# Unified Timeline Schema for Dashboard
+class TimelineEvent(BaseModel):
+    id: int
+    type: str  # 'DOSE', 'MEAL', 'SYMPTOM'
+    title: str
+    description: Optional[str] = None
+    time: datetime
+    
+    class Config:
+        from_attributes = True
