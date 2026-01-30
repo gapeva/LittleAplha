@@ -5,15 +5,28 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from ..core import security
 from ..models import models
-from sqlalchemy import create_all, create_engine
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
+from dotenv import load_dotenv
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/little_alpha")
-engine = create_engine(DATABASE_URL)
+load_dotenv()
+
+# 1. SETUP SQLITE URL (Creates a file named 'little_alpha.db' in your folder)
+# We default to SQLite so you don't need to install Postgres locally
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./little_alpha.db")
+
+# 2. CONFIGURE ENGINE
+# SQLite needs "check_same_thread": False to work with FastAPI
+if "sqlite" in DATABASE_URL:
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login") # Updated token URL path
 
 def get_db() -> Generator:
     db = SessionLocal()
