@@ -1,9 +1,9 @@
+
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
 from ..models.models import RiskLevel
 
-# Auth Schemas
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -16,24 +16,36 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
-# Dose Schemas
-class DoseCreate(BaseModel):
-    pass
-
 class Dose(BaseModel):
     id: int
     timestamp: datetime
     class Config:
         from_attributes = True
 
-# Symptom Schemas
+class MealCreate(BaseModel):
+    food_item: str
+    risk_level: RiskLevel = RiskLevel.LOW
+
+class Meal(MealCreate):
+    id: int
+    timestamp: datetime
+    class Config:
+        from_attributes = True
+
 class SymptomCreate(BaseModel):
     severity: int
     description: str
+    meal_id: Optional[int] = None
 
 class Symptom(SymptomCreate):
     id: int
     timestamp: datetime
-    meal_id: Optional[int]
     class Config:
         from_attributes = True
+
+class StatusResponse(BaseModel):
+    status: str
+    message: str
+    color: str
+    remaining: float
+    last_dose: Optional[datetime] = None
