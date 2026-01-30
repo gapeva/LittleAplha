@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { apiClient } from '../api/client';
 import { Card } from '../components/ui/Card';
 
-export default function Login({ onSuccess, onBack }) {
+export default function Login({ onSuccess, onBack, onNavigateSignup }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,12 +13,13 @@ export default function Login({ onSuccess, onBack }) {
     setLoading(true);
 
     try {
-      // Create form data for OAuth2 password flow
       const formData = new FormData();
       formData.append('username', email);
       formData.append('password', password);
 
-      const response = await fetch('http://localhost:8000/api/login', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+      const response = await fetch(`${apiUrl}/login`, {
         method: 'POST',
         body: formData,
       });
@@ -29,7 +29,7 @@ export default function Login({ onSuccess, onBack }) {
       const data = await response.json();
       onSuccess(data.access_token);
     } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      setError('Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,7 @@ export default function Login({ onSuccess, onBack }) {
 
   return (
     <div className="min-h-screen p-6 flex flex-col justify-center max-w-md mx-auto">
-      <button onClick={onBack} className="text-slate-400 font-bold mb-8 text-sm">← BACK</button>
+      <button onClick={onBack} className="text-slate-400 font-bold mb-8 text-sm text-left">← BACK TO HOME</button>
       
       <h2 className="text-3xl font-black mb-2 text-slate-900">Welcome Back</h2>
       <p className="text-slate-500 mb-8">Enter your credentials to access your dashboard.</p>
@@ -77,6 +77,13 @@ export default function Login({ onSuccess, onBack }) {
           {loading ? 'Authenticating...' : 'Sign In'}
         </button>
       </form>
+
+      <div className="mt-8 text-center">
+        <p className="text-slate-500 text-sm">Don't have an account?</p>
+        <button onClick={onNavigateSignup} className="text-biotech-blue font-bold text-sm mt-1">
+            Create Testing Account
+        </button>
+      </div>
     </div>
   );
 }
