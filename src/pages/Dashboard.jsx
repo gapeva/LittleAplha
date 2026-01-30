@@ -51,13 +51,20 @@ export default function Dashboard({ onLogout }) {
         setExpiryDate(null);
       }
 
-      // 3. Update Timeline
-      const formattedEvents = historyData.map(e => ({
-        type: e.type,
-        title: e.title,
-        description: e.description,
-        time: new Date(e.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }));
+      // 3. Update Timeline with Timezone Fix
+      const formattedEvents = historyData.map(e => {
+        // Ensure string is treated as UTC by appending 'Z' if missing
+        // This forces the browser to convert it to Local Time correctly
+        const timeString = e.time.endsWith('Z') ? e.time : `${e.time}Z`;
+        const dateObj = new Date(timeString);
+
+        return {
+          type: e.type,
+          title: e.title,
+          description: e.description,
+          time: dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+      });
       setEvents(formattedEvents);
 
     } catch (error) {
