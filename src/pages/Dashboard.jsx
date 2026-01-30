@@ -1,56 +1,96 @@
 import { useState, useEffect } from 'react';
 import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
-import { Flame, LogOut, Utensils } from 'lucide-react';
+import { AdherenceTimeline } from '../components/AdherenceTimeline';
+import { StreakCounter } from '../components/StreakCounter'; // Assuming this exists or using simple UI
+import { Flame, LogOut, Utensils, Syringe } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { useTimer } from '../hooks/useTimer';
+import { useToast } from '../components/ui/Toast';
 
 export default function Dashboard({ onLogout }) {
-  const [status, setStatus] = useState({
-    state: 'IDLE',
-    remaining: "--:--",
-    message: "Ready for Dose"
-  });
-  // eslint-disable-next-line no-unused-vars
-  const [loading, setLoading] = useState(true);
-  const [streak, setStreak] = useState(0); // Added state for streak if available in future API updates
+  const { addToast } = useToast();
   
-  const fetchStatus = async () => {
+  // Status State
+  const [statusState, setStatusState] = useState('IDLE');
+  const [statusMessage, setStatusMessage] = useState("Ready for Dose");
+  const [expiryDate, setExpiryDate] = useState(null);
+  
+  // Data State
+  const [events, setEvents] = useState([]);
+  const [streak, setStreak] = useState(0); 
+  const [loading, setLoading] = useState(true);
+
+  // Timer Hook
+  const { minutes, seconds, isExpired } = useTimer(expiryDate);
+
+  // Format Timer for Display
+  const timerDisplay = expiryDate 
+    ? (isExpired ? "0:00" : `${minutes}:${seconds}`) 
+    : "--:--";
+
+  const loadData = async () => {
     try {
-      const data = await apiClient('/status');
-      setStatus({
-        state: data.status,
-        message: data.message,
-        remaining: data.remaining > 0 ? formatTime(data.remaining) : "--:--"
-      });
-      // Note: If backend sends streak data in /status, update it here
+      setLoading(true);
+      
+      // Parallel Fetching
+      const [statusData, historyData] = await Promise.all([
+        apiClient('/status'),
+        apiClient('/history')
+      ]);
+
+      // Handle Status & Timer
+      setStatusState(statusData.status);
+      setStatusMessage(statusData.message);
+      
+      // Calculate Expiry Date based on 'remaining' minutes from backend
+      if (statusData.remaining > 0) {
+        const now = new Date();
+        const expiry = new Date(now.getTime() + statusData.remaining * 60 * 1000);
+        setExpiryDate(expiry);
+      } else {
+        setExpiryDate(null);
+      }
+
+      // Handle Timeline
+      const formattedEvents = historyData.map(e => ({
+        type: e.type,
+        title: e.title,
+        description: e.description,
+        time: new Date(e.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      setEvents(formattedEvents);
+
+      // Simple streak calculation from history (or backend could provide this)
+      // For now, let's look for DOSE events in history
+      const doseCount = historyData.filter(e => e.type === 'DOSE').length;
+      setStreak(doseCount);
+
     } catch (error) {
-      console.error("Session expired or server down");
-      if (error.message.includes("401")) onLogout();
+      console.error("Dashboard Sync Error:", error);
+      if (error.message.includes("401")) {
+        onLogout();
+      } else {
+        addToast("Failed to sync data. Retrying...", "error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTime = (minutes) => {
-    const mins = Math.floor(minutes);
-    const secs = Math.floor((minutes - mins) * 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Poll every 30s
+    loadData();
+    const interval = setInterval(loadData, 60000); // Poll every minute to sync drift
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogDose = async () => {
     try {
       await apiClient('/dose', { method: 'POST' });
-      fetchStatus();
-      alert("Dose logged! Timer started.");
+      addToast("Dose logged successfully!", "success");
+      loadData(); // Refresh immediately
     } catch (e) { 
-      alert("Failed to log dose. Please try again."); 
+      addToast("Failed to log dose.", "error"); 
     }
   };
 
@@ -63,12 +103,13 @@ export default function Dashboard({ onLogout }) {
         method: 'POST',
         body: JSON.stringify({
           food_item: foodItem,
-          risk_level: "low" // Defaulting to safe/low risk for this button
+          risk_level: "low"
         })
       });
-      alert(`Enjoy your ${foodItem}! Meal logged to history.`);
+      addToast("Meal logged.", "success");
+      loadData();
     } catch (e) {
-      alert("Could not log meal. Please check connection.");
+      addToast("Could not log meal.", "error");
     }
   };
 
@@ -79,20 +120,21 @@ export default function Dashboard({ onLogout }) {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
             <Flame className="text-orange-500 fill-orange-500" size={14} />
-            <span className="font-bold text-xs text-orange-900">{streak} Days</span>
+            <span className="font-bold text-xs text-orange-900">{streak} Doses</span>
           </div>
           <button onClick={onLogout} className="text-slate-400 hover:text-slate-600 p-1"><LogOut size={20} /></button>
         </div>
       </header>
 
       <main className="p-6">
-        <StatusCircle state={status.state} remainingTime={status.remaining} />
+        <StatusCircle state={statusState} remainingTime={timerDisplay} />
         
         <div className="space-y-4 mt-8">
           <button 
             onClick={handleLogDose}
-            className="w-full bg-biotech-blue text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-[0.98] transition-all hover:bg-biotech-dark text-lg"
+            className="w-full bg-biotech-blue text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-[0.98] transition-all hover:bg-biotech-dark text-lg flex items-center justify-center gap-2"
           >
+            <Syringe size={24} className="text-white/80" />
             Log Immunotherapy Dose
           </button>
           
@@ -106,16 +148,23 @@ export default function Dashboard({ onLogout }) {
         </div>
 
         <h3 className="mt-12 font-black text-slate-400 text-xs uppercase tracking-widest mb-4">Current Safety Protocol</h3>
-        <Card className="p-5 border-l-4 border-l-biotech-blue">
-          <p className="font-bold text-slate-800 mb-1">{status.message}</p>
+        <Card className="p-5 border-l-4 border-l-biotech-blue mb-8">
+          <p className="font-bold text-slate-800 mb-1">{statusMessage}</p>
           <p className="text-sm text-slate-500 leading-relaxed">
-            {status.state === 'PROTECTED' 
+            {statusState === 'PROTECTED' 
               ? "Your enzymatic barrier is active. You are safe for mammalian-derived ingredients." 
-              : status.state === 'DISSOLVING'
+              : statusState === 'DISSOLVING'
               ? "Please wait for full absorption before consuming any mammalian products."
               : "Protocol standby. Ensure 30 minutes of absorption after your next dose."}
           </p>
         </Card>
+
+        <h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-4">Recent Activity</h3>
+        {loading && events.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 text-sm">Syncing records...</div>
+        ) : (
+          <AdherenceTimeline events={events} />
+        )}
       </main>
     </div>
   );
