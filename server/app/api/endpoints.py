@@ -7,6 +7,7 @@ from .protection import calculate_protection_status
 from .auth import create_user, login
 from datetime import datetime
 from fastapi.security import OAuth2PasswordRequestForm
+from typing import List
 
 router = APIRouter()
 
@@ -49,8 +50,6 @@ def log_dose(db: Session = Depends(get_db), current_user: models.User = Depends(
     # Update Streak Logic
     streak = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
     if streak:
-        # Simple daily logic: check if last dose was 'yesterday' to increment, or today to ignore
-        # For MVP, we just increment count for every dose for gratification
         streak.current_count += 1
         streak.last_dose_date = datetime.utcnow()
     
@@ -79,8 +78,23 @@ def log_symptom(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # Logic: If meal_id is not provided, link to the most recent meal within 4 hours
+    meal_id = symptom_data.meal_id
+    
+    if not meal_id:
+        recent_meal = db.query(models.MealLog)\
+            .filter(models.MealLog.user_id == current_user.id)\
+            .order_by(models.MealLog.timestamp.desc())\
+            .first()
+        if recent_meal:
+            # Optional: Check if meal was recent enough (e.g., 4 hours)
+            # For now, we link to the absolute last meal
+            meal_id = recent_meal.id
+
     new_symptom = models.Symptom(
-        **symptom_data.dict(),
+        severity=symptom_data.severity,
+        description=symptom_data.description,
+        meal_id=meal_id,
         user_id=current_user.id,
         timestamp=datetime.utcnow()
     )
@@ -88,3 +102,38 @@ def log_symptom(
     db.commit()
     db.refresh(new_symptom)
     return new_symptom
+
+@router.get("/history", response_model=List[schemas.TimelineEvent])
+def get_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # Fetch all types of events
+    doses = db.query(models.DoseLog).filter(models.DoseLog.user_id == current_user.id).all()
+    meals = db.query(models.MealLog).filter(models.MealLog.user_id == current_user.id).all()
+    symptoms = db.query(models.Symptom).filter(models.Symptom.user_id == current_user.id).all()
+    
+    timeline = []
+    
+    for d in doses:
+        timeline.append({
+            "id": d.id, "type": "DOSE", "title": "Immunotherapy Dose", 
+            "description": "Logged protection dose", "time": d.timestamp
+        })
+        
+    for m in meals:
+        timeline.append({
+            "id": m.id, "type": "MEAL", "title": f"Meal: {m.food_item}",
+            "description": f"Risk Level: {m.risk_level.value}", "time": m.timestamp
+        })
+        
+    for s in symptoms:
+        timeline.append({
+            "id": s.id, "type": "SYMPTOM", "title": "Symptom Reported",
+            "description": f"Severity {s.severity}/10 - {s.description}", "time": s.timestamp
+        })
+        
+    # Sort by time descending
+    timeline.sort(key=lambda x: x["time"], reverse=True)
+    
+    return timeline
