@@ -1,96 +1,90 @@
 import { useState, useEffect } from 'react';
 import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
-import { Flame, PlusCircle, LogOut } from 'lucide-react';
+import { Flame, PlusCircle, LogOut, Utensils } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 export default function Dashboard({ onLogout }) {
-  const [appState, setAppState] = useState('IDLE'); // IDLE, DISSOLVING, PROTECTED, VULNERABLE
-  const [remainingTime, setRemainingTime] = useState(0);
+  const [status, setStatus] = useState({
+    state: 'IDLE',
+    remaining: "--:--",
+    message: "Ready for Dose"
+  });
   const [loading, setLoading] = useState(true);
   
   const fetchStatus = async () => {
     try {
       const data = await apiClient('/status');
-      setAppState(data.status);
-      if (data.remaining) {
-        // Formating logic could go here, for now pass raw minutes
-        const minutes = Math.floor(data.remaining);
-        const seconds = Math.floor((data.remaining - minutes) * 60);
-        setRemainingTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-      } else {
-        setRemainingTime("--:--");
-      }
+      setStatus({
+        state: data.status,
+        message: data.message,
+        remaining: data.remaining > 0 ? formatTime(data.remaining) : "--:--"
+      });
     } catch (error) {
-      console.error("Failed to fetch status", error);
+      console.error("Session expired or server down");
+      if (error.message.includes("401")) onLogout();
     } finally {
       setLoading(false);
     }
   };
 
+  const formatTime = (minutes) => {
+    const mins = Math.floor(minutes);
+    const secs = Math.floor((minutes - mins) * 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     fetchStatus();
-    // Poll every minute to update UI
-    const interval = setInterval(fetchStatus, 60000);
+    const interval = setInterval(fetchStatus, 30000); // Poll every 30s
     return () => clearInterval(interval);
   }, []);
 
   const handleLogDose = async () => {
     try {
-      setAppState('DISSOLVING'); // Optimistic update
       await apiClient('/dose', { method: 'POST' });
-      fetchStatus(); // Refresh for server calculation
-    } catch (error) {
-      console.error("Failed to log dose");
-    }
+      fetchStatus();
+    } catch (e) { alert("Failed to log dose"); }
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
-      <div className="p-6 flex justify-between items-center bg-white border-b">
-        <h1 className="text-xl font-bold text-biotech-blue italic">Little Alpha</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 bg-streak/20 px-3 py-1 rounded-full">
-            <Flame className="text-streak fill-streak" size={16} />
-            <span className="font-bold text-sm text-slate-700">0 Day Streak</span>
+    <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-24">
+      <header className="p-6 flex justify-between items-center bg-white border-b sticky top-0 z-20">
+        <h1 className="text-xl font-black text-biotech-blue tracking-tighter italic">LITTLE ALPHA</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+            <Flame className="text-orange-500 fill-orange-500" size={14} />
+            <span className="font-bold text-xs text-orange-900">0 Days</span>
           </div>
-          <button onClick={onLogout} className="text-slate-400 hover:text-slate-600">
-            <LogOut size={20} />
-          </button>
+          <button onClick={onLogout} className="text-slate-400 hover:text-slate-600 p-1"><LogOut size={20} /></button>
         </div>
-      </div>
+      </header>
 
-      {/* Main Status */}
-      <div className="p-6">
-        <StatusCircle state={appState} remainingTime={remainingTime} />
+      <main className="p-6">
+        <StatusCircle state={status.state} remainingTime={status.remaining} />
         
-        <div className="grid grid-cols-1 gap-4 mt-8">
+        <div className="space-y-4 mt-8">
           <button 
             onClick={handleLogDose}
-            className="w-full bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg active:scale-95 transition-transform hover:bg-biotech-dark"
+            className="w-full bg-biotech-blue text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-[0.98] transition-all hover:bg-biotech-dark text-lg"
           >
-            Log Dose
+            Log Immunotherapy Dose
           </button>
           
-          <button className="w-full bg-white border-2 border-slate-200 text-slate-600 font-bold py-4 rounded-medical flex items-center justify-center gap-2 hover:bg-slate-50">
-            <PlusCircle size={20} />
-            Log Meal
+          <button className="w-full bg-white border-2 border-slate-100 text-slate-600 font-bold py-5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+            <Utensils size={20} className="text-safe" />
+            Log Safe Meal
           </button>
         </div>
 
-        {/* Recent Activity Mini-List */}
-        <h3 className="mt-10 font-bold text-slate-700 mb-4">Recent Status</h3>
-        <Card className="p-4 space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <div>
-              <p className="font-medium text-slate-800">Current State</p>
-              <p className="text-xs text-slate-400">Updated just now</p>
-            </div>
-            <span className="text-biotech-blue text-sm font-bold">{appState}</span>
-          </div>
+        <h3 className="mt-12 font-black text-slate-400 text-xs uppercase tracking-widest mb-4">Current Safety Protocol</h3>
+        <Card className="p-5 border-l-4 border-l-biotech-blue">
+          <p className="font-bold text-slate-800 mb-1">{status.message}</p>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            {status.state === 'PROTECTED' ? "Your enzymatic barrier is active. You are safe for mammalian-derived ingredients." : "Protocol standby. Ensure 30 minutes of absorption after your next dose."}
+          </p>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }
