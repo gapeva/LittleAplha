@@ -1,8 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 def calculate_protection_status(last_dose_time: datetime):
-    now = datetime.utcnow()
-    diff_minutes = (now - last_dose_time).total_seconds() / 60
+    # Ensure we compare UTC to UTC
+    # Note: last_dose_time from DB is naive UTC (default SQLAlchemy behavior)
+    now = datetime.utcnow() 
+    
+    # Calculate difference in minutes
+    diff_seconds = (now - last_dose_time).total_seconds()
+    diff_minutes = diff_seconds / 60
 
     if diff_minutes < 30:
         return {
