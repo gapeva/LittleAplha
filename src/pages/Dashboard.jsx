@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
-import { Flame, PlusCircle, LogOut, Utensils } from 'lucide-react';
+import { Flame, LogOut, Utensils } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 export default function Dashboard({ onLogout }) {
@@ -10,7 +10,9 @@ export default function Dashboard({ onLogout }) {
     remaining: "--:--",
     message: "Ready for Dose"
   });
+  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(true);
+  const [streak, setStreak] = useState(0); // Added state for streak if available in future API updates
   
   const fetchStatus = async () => {
     try {
@@ -20,6 +22,7 @@ export default function Dashboard({ onLogout }) {
         message: data.message,
         remaining: data.remaining > 0 ? formatTime(data.remaining) : "--:--"
       });
+      // Note: If backend sends streak data in /status, update it here
     } catch (error) {
       console.error("Session expired or server down");
       if (error.message.includes("401")) onLogout();
@@ -38,13 +41,35 @@ export default function Dashboard({ onLogout }) {
     fetchStatus();
     const interval = setInterval(fetchStatus, 30000); // Poll every 30s
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogDose = async () => {
     try {
       await apiClient('/dose', { method: 'POST' });
       fetchStatus();
-    } catch (e) { alert("Failed to log dose"); }
+      alert("Dose logged! Timer started.");
+    } catch (e) { 
+      alert("Failed to log dose. Please try again."); 
+    }
+  };
+
+  const handleLogMeal = async () => {
+    const foodItem = prompt("What are you eating?");
+    if (!foodItem) return;
+
+    try {
+      await apiClient('/meals', { 
+        method: 'POST',
+        body: JSON.stringify({
+          food_item: foodItem,
+          risk_level: "low" // Defaulting to safe/low risk for this button
+        })
+      });
+      alert(`Enjoy your ${foodItem}! Meal logged to history.`);
+    } catch (e) {
+      alert("Could not log meal. Please check connection.");
+    }
   };
 
   return (
@@ -54,7 +79,7 @@ export default function Dashboard({ onLogout }) {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
             <Flame className="text-orange-500 fill-orange-500" size={14} />
-            <span className="font-bold text-xs text-orange-900">0 Days</span>
+            <span className="font-bold text-xs text-orange-900">{streak} Days</span>
           </div>
           <button onClick={onLogout} className="text-slate-400 hover:text-slate-600 p-1"><LogOut size={20} /></button>
         </div>
@@ -71,7 +96,10 @@ export default function Dashboard({ onLogout }) {
             Log Immunotherapy Dose
           </button>
           
-          <button className="w-full bg-white border-2 border-slate-100 text-slate-600 font-bold py-5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
+          <button 
+            onClick={handleLogMeal}
+            className="w-full bg-white border-2 border-slate-100 text-slate-600 font-bold py-5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors active:scale-[0.98]"
+          >
             <Utensils size={20} className="text-safe" />
             Log Safe Meal
           </button>
@@ -81,7 +109,11 @@ export default function Dashboard({ onLogout }) {
         <Card className="p-5 border-l-4 border-l-biotech-blue">
           <p className="font-bold text-slate-800 mb-1">{status.message}</p>
           <p className="text-sm text-slate-500 leading-relaxed">
-            {status.state === 'PROTECTED' ? "Your enzymatic barrier is active. You are safe for mammalian-derived ingredients." : "Protocol standby. Ensure 30 minutes of absorption after your next dose."}
+            {status.state === 'PROTECTED' 
+              ? "Your enzymatic barrier is active. You are safe for mammalian-derived ingredients." 
+              : status.state === 'DISSOLVING'
+              ? "Please wait for full absorption before consuming any mammalian products."
+              : "Protocol standby. Ensure 30 minutes of absorption after your next dose."}
           </p>
         </Card>
       </main>
