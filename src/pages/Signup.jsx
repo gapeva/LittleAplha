@@ -13,19 +13,22 @@ export default function Signup({ onNavigateLogin }) {
     setLoading(true);
 
     try {
+      // apiClient handles the fetch and JSON parsing automatically
       await apiClient('/signup', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
+      
       addToast("Account created successfully!", "success");
       
-      // Small delay to let user see success before transition
+      // Delay transition to allow user to read success message
       setTimeout(() => {
         onNavigateLogin();
       }, 1500);
       
     } catch (err) {
-      addToast(err.message || 'Registration failed. Email may be taken.', "error");
+      // Display specific error from backend (e.g., "Email already registered")
+      addToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -54,6 +57,7 @@ export default function Signup({ onNavigateLogin }) {
           <input 
             type="password" 
             required
+            minLength={6}
             className="w-full p-4 rounded-medical border border-slate-200 focus:border-biotech-blue focus:ring-1 focus:ring-biotech-blue outline-none transition-all"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
