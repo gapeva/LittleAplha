@@ -3,7 +3,7 @@ import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
 import { AdherenceTimeline } from '../components/AdherenceTimeline';
 import { StreakCounter } from '../components/StreakCounter';
-import { LogOut, Utensils, Syringe } from 'lucide-react';
+import { LogOut, Utensils, Syringe, Loader2 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { useTimer } from '../hooks/useTimer';
 import { useToast } from '../components/ui/Toast';
@@ -13,39 +13,36 @@ export default function Dashboard({ onLogout }) {
   
   // Status State
   const [statusState, setStatusState] = useState('IDLE');
-  const [statusMessage, setStatusMessage] = useState("Ready for Dose");
+  const [statusMessage, setStatusMessage] = useState("Loading protocol...");
   const [expiryDate, setExpiryDate] = useState(null);
   
   // Data State
   const [events, setEvents] = useState([]);
   const [streak, setStreak] = useState(0); 
-  const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Timer Hook
   const { minutes, seconds, isExpired } = useTimer(expiryDate);
 
-  // Format Timer for Display
   const timerDisplay = expiryDate 
     ? (isExpired ? "0:00" : `${minutes}:${seconds}`) 
     : "--:--";
 
-  const loadData = async () => {
+  const loadData = async (isBackground = false) => {
     try {
-      // Keep loading true only on initial load to prevent UI flickering on poller
-      if (events.length === 0) setLoading(true);
+      if (!isBackground) setIsInitialLoading(true);
       
-      // Parallel Fetching
       const [statusData, historyData] = await Promise.all([
         apiClient('/status'),
         apiClient('/history')
       ]);
 
-      // Handle Status & Timer
+      // 1. Update Status & Logic
       setStatusState(statusData.status);
       setStatusMessage(statusData.message);
-      setStreak(statusData.streak); // Now sourced from backend logic
+      setStreak(statusData.streak);
       
-      // Calculate Expiry Date based on 'remaining' minutes from backend
+      // 2. Calculate Expiry Date (Client Time = Now + Remaining Minutes)
       if (statusData.remaining > 0) {
         const now = new Date();
         const expiry = new Date(now.getTime() + statusData.remaining * 60 * 1000);
@@ -54,7 +51,7 @@ export default function Dashboard({ onLogout }) {
         setExpiryDate(null);
       }
 
-      // Handle Timeline
+      // 3. Update Timeline
       const formattedEvents = historyData.map(e => ({
         type: e.type,
         title: e.title,
@@ -65,17 +62,18 @@ export default function Dashboard({ onLogout }) {
 
     } catch (error) {
       console.error("Dashboard Sync Error:", error);
-      if (error.message.includes("401")) {
+      if (error.message.includes("401") || error.message.includes("Unauthorized")) {
         onLogout();
       }
     } finally {
-      setLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
+  // Initial Load + Polling for sync
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 60000); // Poll every minute to sync drift
+    loadData(); // Initial load
+    const interval = setInterval(() => loadData(true), 60000); // Background poll
     return () => clearInterval(interval);
   }, []);
 
@@ -83,9 +81,9 @@ export default function Dashboard({ onLogout }) {
     try {
       await apiClient('/dose', { method: 'POST' });
       addToast("Dose logged successfully!", "success");
-      loadData(); // Refresh immediately
+      await loadData(true); // Refresh data immediately
     } catch (e) { 
-      addToast("Failed to log dose.", "error"); 
+      addToast(e.message || "Failed to log dose.", "error"); 
     }
   };
 
@@ -102,11 +100,20 @@ export default function Dashboard({ onLogout }) {
         })
       });
       addToast("Meal logged.", "success");
-      loadData();
+      await loadData(true);
     } catch (e) {
-      addToast("Could not log meal.", "error");
+      addToast(e.message || "Could not log meal.", "error");
     }
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-400 gap-4">
+        <Loader2 className="animate-spin" size={48} />
+        <p className="font-bold tracking-widest text-xs uppercase">Loading Secure Data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-slate-50 pb-24">
@@ -152,8 +159,8 @@ export default function Dashboard({ onLogout }) {
         </Card>
 
         <h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-4">Recent Activity</h3>
-        {loading && events.length === 0 ? (
-          <div className="text-center py-10 text-slate-400 text-sm">Syncing records...</div>
+        {events.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 text-sm">No activity recorded today.</div>
         ) : (
           <AdherenceTimeline events={events} />
         )}
