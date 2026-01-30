@@ -2,11 +2,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import os
 
-# Configuration (In production, move these to environment variables)
-SECRET_KEY = "SUPER_SECRET_BIO_KEY" 
+# Configuration 
+# FALLBACKS ARE FOR DEV ONLY. PRODUCTION MUST HAVE ENV VARS.
+SECRET_KEY = os.getenv("SECRET_KEY", "DEV_SECRET_CHANGE_ME_IN_PROD") 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 43200 # 30 days for MVP convenience
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30 # 30 days
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
