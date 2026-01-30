@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Shield, Play, ArrowRight, Heart, CheckCircle2, Youtube } from 'lucide-react';
+// Remove 'Link' from the import since we are replacing it with a button
+// import { Link } from 'react-router-dom'; 
+import { Shield, ArrowRight, Heart, CheckCircle2, Youtube } from 'lucide-react';
 
-export default function Landing() {
+// 1. ADD PROPS HERE: Accept onNavigateLogin
+export default function Landing({ onNavigateLogin }) {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -40,9 +42,13 @@ export default function Landing() {
 
           <div className="h-6 w-px bg-slate-200 hidden md:block"></div>
 
-          <Link to="/login" className="text-sm font-bold text-slate-500 hover:text-biotech-blue transition-colors">
+          {/* 2. CHANGE THIS SECTION: Use button + onClick instead of Link */}
+          <button 
+            onClick={onNavigateLogin} 
+            className="text-sm font-bold text-slate-500 hover:text-biotech-blue transition-colors"
+          >
             Patient Login
-          </Link>
+          </button>
         </div>
       </nav>
 
