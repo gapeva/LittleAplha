@@ -5,7 +5,7 @@ from ..schemas import schemas
 from .deps import get_db, get_current_user
 from .protection import calculate_protection_status
 from .auth import create_user, login
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter()
@@ -49,6 +49,8 @@ def log_dose(db: Session = Depends(get_db), current_user: models.User = Depends(
     # Update Streak Logic
     streak = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
     if streak:
+        # Simple daily logic: check if last dose was 'yesterday' to increment, or today to ignore
+        # For MVP, we just increment count for every dose for gratification
         streak.current_count += 1
         streak.last_dose_date = datetime.utcnow()
     
@@ -70,3 +72,19 @@ def log_meal(
     db.commit()
     db.refresh(new_meal)
     return new_meal
+
+@router.post("/symptoms", response_model=schemas.Symptom)
+def log_symptom(
+    symptom_data: schemas.SymptomCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    new_symptom = models.Symptom(
+        **symptom_data.dict(),
+        user_id=current_user.id,
+        timestamp=datetime.utcnow()
+    )
+    db.add(new_symptom)
+    db.commit()
+    db.refresh(new_symptom)
+    return new_symptom
