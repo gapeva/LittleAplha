@@ -14,16 +14,13 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Little Alpha API")
 
 # CORS Configuration
-# In production, VITE_API_URL logic in frontend must match this
-origins = [
-    "http://localhost:5173", # Vite local
-    "http://localhost:3000",
-    # Add your Vercel URL here later: e.g. "https://little-alpha.vercel.app"
-]
+# Production Note: Set ALLOWED_ORIGINS env var to your Vercel URL (e.g., "https://little-alpha.vercel.app")
+origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+origins = [origin.strip() for origin in origins_str.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Change to 'origins' list for strict production security
+    allow_origins=origins, 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
