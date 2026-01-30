@@ -121,9 +121,24 @@ def get_history(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    doses = db.query(models.DoseLog).filter(models.DoseLog.user_id == current_user.id).all()
-    meals = db.query(models.MealLog).filter(models.MealLog.user_id == current_user.id).all()
-    symptoms = db.query(models.Symptom).filter(models.Symptom.user_id == current_user.id).all()
+    # LIMIT DATA: Only fetch the last 50 records to prevent crashing the app over time
+    doses = db.query(models.DoseLog)\
+        .filter(models.DoseLog.user_id == current_user.id)\
+        .order_by(models.DoseLog.timestamp.desc())\
+        .limit(50)\
+        .all()
+        
+    meals = db.query(models.MealLog)\
+        .filter(models.MealLog.user_id == current_user.id)\
+        .order_by(models.MealLog.timestamp.desc())\
+        .limit(50)\
+        .all()
+        
+    symptoms = db.query(models.Symptom)\
+        .filter(models.Symptom.user_id == current_user.id)\
+        .order_by(models.Symptom.timestamp.desc())\
+        .limit(50)\
+        .all()
     
     timeline = []
     
@@ -145,6 +160,8 @@ def get_history(
             "description": f"Severity {s.severity}/10 - {s.description}", "time": s.timestamp
         })
         
+    # Sort the combined list by time descending
     timeline.sort(key=lambda x: x["time"], reverse=True)
     
-    return timeline
+    # Return only the top 50 most recent events
+    return timeline[:50]
