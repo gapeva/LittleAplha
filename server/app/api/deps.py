@@ -12,21 +12,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# 1. SETUP SQLITE URL (Creates a file named 'little_alpha.db' in your folder)
-# We default to SQLite so you don't need to install Postgres locally
+# 1. GET DATABASE URL (Default to SQLite if .env is missing)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./little_alpha.db")
 
-# 2. CONFIGURE ENGINE
-# SQLite needs "check_same_thread": False to work with FastAPI
+# 2. CONFIGURE ENGINE (CRITICAL FIX FOR SQLITE)
+# SQLite requires "check_same_thread": False to work with FastAPI's threading
 if "sqlite" in DATABASE_URL:
     connect_args = {"check_same_thread": False}
     engine = create_engine(DATABASE_URL, connect_args=connect_args)
 else:
+    # Postgres configuration (Production)
     engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login") # Updated token URL path
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
 
 def get_db() -> Generator:
     db = SessionLocal()

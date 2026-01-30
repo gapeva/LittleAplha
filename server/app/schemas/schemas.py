@@ -1,8 +1,9 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional, List
 from datetime import datetime
-from typing import Optional, List, Union
-from ..models.models import RiskLevel
+from enum import Enum
 
+# --- User Schemas ---
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -12,51 +13,72 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
+    created_at: datetime = datetime.utcnow()
+
     class Config:
         from_attributes = True
 
-class Dose(BaseModel):
-    id: int
-    timestamp: datetime
-    class Config:
-        from_attributes = True
+# --- Meal Schemas ---
+class RiskLevel(str, Enum):
+    safe = "safe"
+    low = "low"
+    moderate = "moderate"
+    high = "high"
 
-class MealCreate(BaseModel):
+class MealBase(BaseModel):
     food_item: str
-    risk_level: RiskLevel = RiskLevel.LOW
+    risk_level: RiskLevel
 
-class Meal(MealCreate):
+class MealCreate(MealBase):
+    pass
+
+class Meal(MealBase):
     id: int
+    user_id: int
     timestamp: datetime
+
     class Config:
         from_attributes = True
 
-class SymptomCreate(BaseModel):
+# --- Symptom Schemas ---
+class SymptomBase(BaseModel):
     severity: int
-    description: str
+    description: Optional[str] = None
     meal_id: Optional[int] = None
 
-class Symptom(SymptomCreate):
+class SymptomCreate(SymptomBase):
+    pass
+
+class Symptom(SymptomBase):
     id: int
+    user_id: int
     timestamp: datetime
+
     class Config:
         from_attributes = True
 
+# --- Status Schema ---
 class StatusResponse(BaseModel):
     status: str
     message: str
     color: str
     remaining: float
     last_dose: Optional[datetime] = None
-    streak: int  # <--- ADDED: Critical for gamification sync
+    streak: int
 
-# Unified Timeline Schema for Dashboard
+# --- History Schema ---
 class TimelineEvent(BaseModel):
     id: int
-    type: str  # 'DOSE', 'MEAL', 'SYMPTOM'
+    type: str
     title: str
-    description: Optional[str] = None
+    description: str
     time: datetime
-    
-    class Config:
-        from_attributes = True
+
+# --- NEW: WAITLIST SCHEMA ---
+class WaitlistCreate(BaseModel):
+    email: EmailStr
+    full_name: str
+    country: str
+    ags_status: str  # e.g., "patient", "relative"
+    age_range: str
+    gender: str

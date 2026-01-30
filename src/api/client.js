@@ -1,9 +1,9 @@
-const API_URL = "http://127.0.0.1:8000/api";
+// QA FIX: Use relative path. The proxy in vite.config.js will handle the rest.
+const API_URL = "/api";
 
 export const apiClient = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
   
-  // Detect if we are sending a File/Form (Login) or JSON (Signup)
   const isFormData = options.body instanceof FormData;
   
   const headers = {
@@ -13,7 +13,7 @@ export const apiClient = async (endpoint, options = {}) => {
   };
 
   const fullUrl = `${API_URL}${endpoint}`;
-  console.log(`[API Request] ${options.method || 'GET'} ${fullUrl}`); 
+  console.log(`[API CALL] ${options.method || 'GET'} ${fullUrl}`); 
 
   try {
     const response = await fetch(fullUrl, {
@@ -22,19 +22,20 @@ export const apiClient = async (endpoint, options = {}) => {
     });
 
     if (!response.ok) {
-      let errorMessage = 'Request failed';
+      const text = await response.text();
+      let errorMessage = `Error ${response.status}`;
       try {
-        const error = await response.json();
-        errorMessage = error.detail || errorMessage;
+        const json = JSON.parse(text);
+        errorMessage = json.detail || errorMessage;
       } catch (e) {
-        errorMessage = `Server Error: ${response.status}`;
+        if (text) errorMessage = text;
       }
       throw new Error(errorMessage);
     }
 
     return response.json();
   } catch (error) {
-    console.error(`[API Error]`, error);
+    console.error("[API ERROR]", error);
     throw error;
   }
 };

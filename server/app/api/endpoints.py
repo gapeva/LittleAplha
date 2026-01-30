@@ -1,3 +1,5 @@
+import csv
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..models import models
@@ -24,13 +26,11 @@ def get_current_protection_status(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Fetch Last Dose
     last_dose = db.query(models.DoseLog)\
         .filter(models.DoseLog.user_id == current_user.id)\
         .order_by(models.DoseLog.timestamp.desc())\
         .first()
     
-    # 2. Fetch Streak Data
     streak_record = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
     current_streak = streak_record.current_count if streak_record else 0
 
@@ -44,7 +44,6 @@ def get_current_protection_status(
             "streak": current_streak
         }
     
-    # 3. Calculate Logic
     status_data = calculate_protection_status(last_dose.timestamp)
     status_data["last_dose"] = last_dose.timestamp
     status_data["streak"] = current_streak
@@ -56,11 +55,8 @@ def log_dose(db: Session = Depends(get_db), current_user: models.User = Depends(
     new_dose = models.DoseLog(user_id=current_user.id, timestamp=datetime.utcnow())
     db.add(new_dose)
     
-    # Update Streak Logic
     streak = db.query(models.Streak).filter(models.Streak.user_id == current_user.id).first()
     if streak:
-        # NOTE: Real production apps would check if 'last_dose_date' was yesterday to increment
-        # For this MVP, we increment on every dose as per requirements
         streak.current_count += 1
         streak.last_dose_date = datetime.utcnow()
     
@@ -91,7 +87,6 @@ def log_symptom(
 ):
     meal_id = symptom_data.meal_id
     
-    # Logic: Auto-link if no meal provided, BUT only if meal was < 4 hours ago
     if not meal_id:
         recent_meal = db.query(models.MealLog)\
             .filter(models.MealLog.user_id == current_user.id)\
@@ -99,7 +94,6 @@ def log_symptom(
             .first()
             
         if recent_meal:
-            # 4-Hour Clinical Window Check
             time_diff = datetime.utcnow() - recent_meal.timestamp
             if time_diff < timedelta(hours=4):
                 meal_id = recent_meal.id
@@ -121,7 +115,6 @@ def get_history(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # LIMIT DATA: Only fetch the last 50 records to prevent crashing the app over time
     doses = db.query(models.DoseLog)\
         .filter(models.DoseLog.user_id == current_user.id)\
         .order_by(models.DoseLog.timestamp.desc())\
@@ -160,8 +153,36 @@ def get_history(
             "description": f"Severity {s.severity}/10 - {s.description}", "time": s.timestamp
         })
         
-    # Sort the combined list by time descending
     timeline.sort(key=lambda x: x["time"], reverse=True)
-    
-    # Return only the top 50 most recent events
     return timeline[:50]
+
+# --- NEW WAITLIST ENDPOINT ---
+@router.post("/waitlist")
+def join_waitlist(data: schemas.WaitlistCreate):
+    file_path = "marketing_waitlist.csv"
+    file_exists = os.path.isfile(file_path)
+    
+    try:
+        # Open in Append mode ('a') with UTF-8 encoding
+        with open(file_path, mode='a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            
+            # Write Header if file is new
+            if not file_exists:
+                writer.writerow(["Timestamp", "Email", "Name", "Country", "Status", "Age", "Gender"])
+            
+            # Write Data
+            writer.writerow([
+                datetime.utcnow().isoformat(),
+                data.email,
+                data.full_name,
+                data.country,
+                data.ags_status,
+                data.age_range,
+                data.gender
+            ])
+            
+        return {"message": "Added to waitlist successfully"}
+    except Exception as e:
+        print(f"CSV Error: {e}")
+        raise HTTPException(status_code=500, detail="Could not save to waitlist")
