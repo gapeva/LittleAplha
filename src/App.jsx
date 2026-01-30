@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 
 function App() {
@@ -11,6 +12,10 @@ function App() {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
+      // If we have a token, we usually go to dashboard, 
+      // but let's default to Landing if it's a fresh load so they see the branding,
+      // unless they are explicitly trying to access the app.
+      // For MVP simplicity:
       setCurrentPage('DASHBOARD');
     }
   }, []);
@@ -32,7 +37,6 @@ function App() {
       {currentPage === 'LANDING' && (
         <Landing 
           onNavigateLogin={() => setCurrentPage('LOGIN')} 
-          onNavigateSignup={() => setCurrentPage('SIGNUP')}
         />
       )}
 
@@ -40,22 +44,20 @@ function App() {
         <Login 
           onSuccess={handleLoginSuccess} 
           onBack={() => setCurrentPage('LANDING')} 
+          onNavigateSignup={() => setCurrentPage('SIGNUP')}
+        />
+      )}
+
+      {currentPage === 'SIGNUP' && (
+        <Signup 
+          onNavigateLogin={() => setCurrentPage('LOGIN')}
         />
       )}
 
       {currentPage === 'DASHBOARD' && isAuthenticated ? (
         <Dashboard onLogout={handleLogout} />
       ) : currentPage === 'DASHBOARD' && (
-        // Redirect to landing if user tries to reach dashboard without token
         <Landing onNavigateLogin={() => setCurrentPage('LOGIN')} />
-      )}
-
-      {currentPage === 'SIGNUP' && (
-        <div className="p-10 text-center">
-          <h2 className="text-2xl font-bold mb-4 tracking-tight">Registration</h2>
-          <p className="text-slate-500 mb-6">Create a copy of Login.jsx to build this route.</p>
-          <button onClick={() => setCurrentPage('LANDING')} className="text-biotech-blue font-bold">Return Home</button>
-        </div>
       )}
     </div>
   );
