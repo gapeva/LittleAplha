@@ -48,6 +48,7 @@ class StatusResponse(BaseModel):
     color: str
     remaining: float
     last_dose: Optional[datetime] = None
+    streak: int  # <--- ADDED: Critical for gamification sync
 
 # Unified Timeline Schema for Dashboard
 class TimelineEvent(BaseModel):
