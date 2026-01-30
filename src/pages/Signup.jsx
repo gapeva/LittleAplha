@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { apiClient } from '../api/client';
+import { useToast } from '../components/ui/Toast';
 
 export default function Signup({ onNavigateLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const { addToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -18,27 +17,19 @@ export default function Signup({ onNavigateLogin }) {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      setSuccess(true);
+      addToast("Account created successfully!", "success");
+      
+      // Small delay to let user see success before transition
+      setTimeout(() => {
+        onNavigateLogin();
+      }, 1500);
+      
     } catch (err) {
-      setError(err.message || 'Registration failed. Email may be taken.');
+      addToast(err.message || 'Registration failed. Email may be taken.', "error");
     } finally {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-        <div className="max-w-md w-full bg-white p-8 rounded-medical shadow-soft text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Account Created!</h2>
-          <p className="text-slate-500 mb-6">You can now sign in to your dashboard.</p>
-          <button onClick={onNavigateLogin} className="w-full bg-biotech-blue text-white font-bold py-3 rounded-medical">
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen p-6 flex flex-col justify-center max-w-md mx-auto">
@@ -46,12 +37,6 @@ export default function Signup({ onNavigateLogin }) {
       
       <h2 className="text-3xl font-black mb-2 text-slate-900">Create Account</h2>
       <p className="text-slate-500 mb-8">Start tracking your protection window.</p>
-
-      {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-medical mb-6 text-sm font-medium border border-red-100">
-          {error}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -77,8 +62,9 @@ export default function Signup({ onNavigateLogin }) {
         <button 
           disabled={loading}
           type="submit" 
-          className="w-full bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg disabled:opacity-50"
+          className="w-full bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {loading && <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />}
           {loading ? 'Creating Account...' : 'Sign Up'}
         </button>
       </form>
