@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { StatusCircle } from '../components/StatusCircle';
 import { Card } from '../components/ui/Card';
 import { AdherenceTimeline } from '../components/AdherenceTimeline';
-import { StreakCounter } from '../components/StreakCounter'; // Assuming this exists or using simple UI
-import { Flame, LogOut, Utensils, Syringe } from 'lucide-react';
+import { StreakCounter } from '../components/StreakCounter';
+import { LogOut, Utensils, Syringe } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { useTimer } from '../hooks/useTimer';
 import { useToast } from '../components/ui/Toast';
@@ -31,7 +31,8 @@ export default function Dashboard({ onLogout }) {
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      // Keep loading true only on initial load to prevent UI flickering on poller
+      if (events.length === 0) setLoading(true);
       
       // Parallel Fetching
       const [statusData, historyData] = await Promise.all([
@@ -42,6 +43,7 @@ export default function Dashboard({ onLogout }) {
       // Handle Status & Timer
       setStatusState(statusData.status);
       setStatusMessage(statusData.message);
+      setStreak(statusData.streak); // Now sourced from backend logic
       
       // Calculate Expiry Date based on 'remaining' minutes from backend
       if (statusData.remaining > 0) {
@@ -61,17 +63,10 @@ export default function Dashboard({ onLogout }) {
       }));
       setEvents(formattedEvents);
 
-      // Simple streak calculation from history (or backend could provide this)
-      // For now, let's look for DOSE events in history
-      const doseCount = historyData.filter(e => e.type === 'DOSE').length;
-      setStreak(doseCount);
-
     } catch (error) {
       console.error("Dashboard Sync Error:", error);
       if (error.message.includes("401")) {
         onLogout();
-      } else {
-        addToast("Failed to sync data. Retrying...", "error");
       }
     } finally {
       setLoading(false);
@@ -118,10 +113,7 @@ export default function Dashboard({ onLogout }) {
       <header className="p-6 flex justify-between items-center bg-white border-b sticky top-0 z-20">
         <h1 className="text-xl font-black text-biotech-blue tracking-tighter italic">LITTLE ALPHA</h1>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
-            <Flame className="text-orange-500 fill-orange-500" size={14} />
-            <span className="font-bold text-xs text-orange-900">{streak} Doses</span>
-          </div>
+          <StreakCounter count={streak} />
           <button onClick={onLogout} className="text-slate-400 hover:text-slate-600 p-1"><LogOut size={20} /></button>
         </div>
       </header>
