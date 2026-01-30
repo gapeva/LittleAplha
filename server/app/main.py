@@ -8,15 +8,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Create tables (For MVP/Development)
+# Create tables (For MVP - In production, use Alembic)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Little Alpha API")
 
-# CORS Configuration
-# Production Note: Set ALLOWED_ORIGINS env var to your Vercel URL (e.g., "https://little-alpha.vercel.app")
-origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
-origins = [origin.strip() for origin in origins_str.split(",")]
+# Production Security: CORS Configuration
+# Ensure ALLOWED_ORIGINS is set in your Sevalla/Vercel environment variables.
+# Example: "https://little-alpha.vercel.app,https://admin.little-alpha.com"
+origins_str = os.getenv("ALLOWED_ORIGINS", "")
+if not origins_str:
+    # Fallback for local development if env var is missing
+    origins = ["http://localhost:5173", "http://localhost:3000"]
+else:
+    origins = [origin.strip() for origin in origins_str.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,4 +35,4 @@ app.include_router(endpoints.router, prefix="/api")
 
 @app.get("/")
 def health_check():
-    return {"status": "healthy", "service": "Little Alpha"}
+    return {"status": "healthy", "service": "Little Alpha Production API"}
