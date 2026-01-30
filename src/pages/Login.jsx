@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Card } from '../components/ui/Card';
+import { useToast } from '../components/ui/Toast';
 
 export default function Login({ onSuccess, onBack, onNavigateSignup }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
@@ -27,9 +26,10 @@ export default function Login({ onSuccess, onBack, onNavigateSignup }) {
       if (!response.ok) throw new Error('Invalid credentials');
 
       const data = await response.json();
+      addToast("Welcome back!", "success");
       onSuccess(data.access_token);
     } catch (err) {
-      setError('Invalid email or password.');
+      addToast("Invalid email or password.", "error");
     } finally {
       setLoading(false);
     }
@@ -41,12 +41,6 @@ export default function Login({ onSuccess, onBack, onNavigateSignup }) {
       
       <h2 className="text-3xl font-black mb-2 text-slate-900">Welcome Back</h2>
       <p className="text-slate-500 mb-8">Enter your credentials to access your dashboard.</p>
-
-      {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-medical mb-6 text-sm font-medium border border-red-100">
-          {error}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -72,8 +66,9 @@ export default function Login({ onSuccess, onBack, onNavigateSignup }) {
         <button 
           disabled={loading}
           type="submit" 
-          className="w-full bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg disabled:opacity-50"
+          className="w-full bg-biotech-blue text-white font-bold py-4 rounded-medical shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
         >
+          {loading && <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />}
           {loading ? 'Authenticating...' : 'Sign In'}
         </button>
       </form>
