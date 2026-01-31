@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+
+# Environment files
+.env
+.env.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database (local dev)
+*.db
+*.sqlite
+
+# Server dependencies (separate deployment)
+server/node_modules/
+server/__pycache__/
+server/*.pyc
+server/.env
