@@ -13,16 +13,14 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     is_active: bool
-    created_at: datetime = datetime.utcnow()
 
     class Config:
         from_attributes = True
 
 # --- Meal Schemas ---
 class RiskLevel(str, Enum):
-    safe = "safe"
     low = "low"
-    moderate = "moderate"
+    medium = "medium"
     high = "high"
 
 class MealBase(BaseModel):

@@ -34,7 +34,7 @@ class MealLog(Base):
     __tablename__ = "meal_logs"
     id = Column(Integer, primary_key=True, index=True)
     food_item = Column(String)
-    risk_level = Column(Enum(RiskLevel), default=RiskLevel.LOW)
+    risk_level = Column(String, default="low")
     timestamp = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
     
@@ -49,6 +49,8 @@ class Symptom(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     meal_id = Column(Integer, ForeignKey("meal_logs.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"))
+    
+    meal = relationship("MealLog", back_populates="symptoms")
 
 class Streak(Base):
     __tablename__ = "streaks"

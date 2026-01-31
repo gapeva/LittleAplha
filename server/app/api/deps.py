@@ -12,17 +12,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# 1. GET DATABASE URL (Default to SQLite if .env is missing)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./little_alpha.db")
+# DATABASE CONFIGURATION
+# Production: PostgreSQL (Sevalla provides DATABASE_URL automatically)
+# Local Dev: Set DATABASE_URL in .env or it defaults to SQLite
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 2. CONFIGURE ENGINE (CRITICAL FIX FOR SQLITE)
-# SQLite requires "check_same_thread": False to work with FastAPI's threading
-if "sqlite" in DATABASE_URL:
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required. Set it in your .env file.")
+
+# Configure engine based on database type
+if DATABASE_URL.startswith("sqlite"):
+    # SQLite for local development only
     connect_args = {"check_same_thread": False}
     engine = create_engine(DATABASE_URL, connect_args=connect_args)
 else:
-    # Postgres configuration (Production)
-    engine = create_engine(DATABASE_URL)
+    # PostgreSQL for production (Sevalla)
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

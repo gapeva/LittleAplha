@@ -144,7 +144,7 @@ def get_history(
     for m in meals:
         timeline.append({
             "id": m.id, "type": "MEAL", "title": f"Meal: {m.food_item}",
-            "description": f"Risk Level: {m.risk_level.value}", "time": m.timestamp
+            "description": f"Risk Level: {m.risk_level}", "time": m.timestamp
         })
         
     for s in symptoms:

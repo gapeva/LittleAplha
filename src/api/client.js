@@ -1,5 +1,6 @@
 // QA FIX: Use relative path. The proxy in vite.config.js will handle the rest.
-const API_URL = "/api";
+// Use environment variable for production, fallback to relative path for dev (proxy handles it)
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export const apiClient = async (endpoint, options = {}) => {
   const token = localStorage.getItem('token');
