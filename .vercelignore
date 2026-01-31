@@ -1,0 +1,6 @@
+# Ignore server folder - backend is deployed separately
+server/
+
+# Ignore local development files
+*.db
+.env.local
